@@ -15,7 +15,6 @@ class NcFile:
         __call__(self,varname):
            return metio.dataset.Grid object
 
-        TODO area_definition
     """
 
     name_dict = {"time": "time",
@@ -38,7 +37,10 @@ class NcFile:
 
     def __call__(self, varname):
         var = self.fh.variables[varname]
-        arr = ma.masked_values(var[:], var._FillValue)
+        if hasattr(var,"_FillValue"):
+            arr = ma.masked_values(var[:], var._FillValue)
+        else:
+            arr = var[:]
         return metio.dataset.Grid(self.times, self.loc, arr)
 
 
@@ -137,6 +139,14 @@ if __name__ == "__main__":
 
     ref = NcFile(filename)
     pp = ref.get_area_def()
+    sm = ref("X002WG1")
     fn2 = ["/home/asmundb/Projects/H2O/nc/nor_ana/met_analysis_1_0km_nordic_20190713T%02dZ.nc" % (i) for i in range(22)]
-    ana = NcFile(fn2)
+    ana = MetNc(fn2)
     pp1 = ana.get_area_def(proj_var=ana.search("proj")[0])
+    tp = ana("precipitation_amount")
+    tp = ana("air_temperature_2m")
+
+
+    tp1 = pyresample.kd_tree.resample_nearest(pp1,np.flipud(tp.values[12,:,:]),pp,radius_of_influence=1000)
+
+    plt.imshow(tp1)
