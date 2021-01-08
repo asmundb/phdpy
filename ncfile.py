@@ -13,7 +13,10 @@ class NcFile:
     """
         Read variable, location and time from ncfile
         __call__(self,varname):
-           return metio.dataset.Grid object
+            return metio.dataset.Grid object
+
+        get_area_def(self):
+            return pyresample.geometry.AreaDefinition object
 
     """
 
@@ -37,16 +40,14 @@ class NcFile:
 
     def __call__(self, varname):
         var = self.fh.variables[varname]
-        if hasattr(var,"_FillValue"):
+        if hasattr(var, "_FillValue"):
             arr = ma.masked_values(var[:], var._FillValue)
         else:
             arr = var[:]
         return metio.dataset.Grid(self.times, self.loc, arr)
 
-
     def close(self):
         self.fh.close()
-
 
     def search(self, string):
         out = []
@@ -54,7 +55,6 @@ class NcFile:
             if string.lower() in v.lower():
                 out.append(v)
         return out
-
 
     def get_area_def(self, proj_var="Projection_parameters"):
         pp = self.fh.variables[proj_var]
@@ -105,6 +105,7 @@ class SfxFa(NcFile):
 
     pass
 
+
 class MetNc(NcFile):
 
     def __init__(self, filename):
@@ -133,20 +134,25 @@ if __name__ == "__main__":
     matplotlib.use("TkAgg")
     import matplotlib.pyplot as plt
 
-    # filename = "/lustre/storeA/users/asmundb/H2O/case_studies/20190713/os3dsd/ref_24h/ICMSHHARM.nc"
+    filename = "/lustre/storeA/users/asmundb/H2O/case_studies/20190713/os3dsd/ref_24h/ICMSHHARM.nc"
 
-    filename = "/home/asmundb/Projects/H2O/nc/20190713/os3dsd/ref_24h/ICMSHHARM.nc"
+    #filename = "/home/asmundb/Projects/H2O/nc/20190713/os3dsd/ref_24h/ICMSHHARM.nc"
 
     ref = NcFile(filename)
     pp = ref.get_area_def()
     sm = ref("X002WG1")
-    fn2 = ["/home/asmundb/Projects/H2O/nc/nor_ana/met_analysis_1_0km_nordic_20190713T%02dZ.nc" % (i) for i in range(22)]
+    mnapath = "/lustre/storeB/project/metkl/klinogrid/archive/met_nordic_analysis/v2/"
+    fn2 = [mnapath + "/2019/07/13/met_analysis_1_0km_nordic_20190713T%02dZ.nc" % (i) for i in range(24)]
+    #fn2 = ["/home/asmundb/Projects/H2O/nc/nor_ana/met_analysis_1_0km_nordic_20190713T%02dZ.nc" % (i) for i in range(22)]
     ana = MetNc(fn2)
     pp1 = ana.get_area_def(proj_var=ana.search("proj")[0])
     tp = ana("precipitation_amount")
-    tp = ana("air_temperature_2m")
+    #tp = ana("air_temperature_2m")
 
+    tp1 = np.moveaxis(pyresample.kd_tree.resample_nearest(pp1, np.flipud(np.moveaxis(tp.values,0,-1)), pp, radius_of_influence=1000),-1,0)
 
-    tp1 = pyresample.kd_tree.resample_nearest(pp1,np.flipud(tp.values[12,:,:]),pp,radius_of_influence=1000)
+    #plt.imshow(tp1)
+    #plt.colorbar()
 
-    plt.imshow(tp1)
+    #plt.figure()
+    #plt.scatter(sm.flatten())
